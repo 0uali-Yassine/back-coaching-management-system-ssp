@@ -6,7 +6,8 @@ const protect = (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = decoded; // attach user info to request
+    req.user = decoded; 
+    console.log('Organization from manager from protect:', req.user.organization)
     next();
   } catch {
     return res.status(403).json({ message: "Invalid token" });

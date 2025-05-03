@@ -1,46 +1,55 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const User = require('../models/User'); 
+const User = require('../models/user.model'); 
+const mongoose = require('mongoose');
+
 
 // generat jwt for  user
 function generateToken(user) {
+  const userObj = user.toObject();
   return jwt.sign(
-    { id: user._id, role: user.role },
+    {
+      id: userObj._id,
+      roles: userObj.roles,
+      organization: userObj.organization, //not a getter
+    },
     process.env.JWT_SECRET,
-    { expiresIn: '1h' }  // expires in 1 hour
+    { expiresIn: '1h' }
   );
 }
 
-// Register a new user (initial manager). Afterwards this route can be disabled.
 async function register(req, res) {
+
+    const orgId = new mongoose.Types.ObjectId(process.env.DEFAULT_ORG_ID);
+
   try {
     const { name, email, password } = req.body;
-    // Basic validation
     if (!name || !email || !password) {
       return res.status(400).json({ error: 'Name, email, and password are required.' });
     }
-    // Check if user already exists
+    
     const existingUser = await User.findOne({ email });
     if (existingUser) {
-      // If user exists, do not allow duplicate registration
       return res.status(400).json({ error: 'User already exists. Please log in.' });
     }
-    // Hash the password with a salt (e.g., 10 rounds):contentReference[oaicite:4]{index=4}
+
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
-    // Create the new user with default role "manager"
+
     const user = await User.create({ 
       name,
       email,
       password: hashedPassword,
-      role: 'manager'
+      roles: ['manager'],
+      organization: orgId
     });
 
     const token = generateToken(user);
     res.status(201).json({
       token,
-      user: { id: user._id, name: user.name, email: user.email, role: user.role }
+      user: { id: user._id, name: user.name, email: user.email, roles: user.roles, organization: user.organization }
     });
+
   } catch (err) {
     console.error('Registration error:', err);
     res.status(500).json({ error: 'Server error during registration.' });
@@ -69,7 +78,7 @@ async function login(req, res) {
     // res.json({ token });
     res.status(201).json({
         token,
-        user: { id: user._id, name: user.name, email: user.email, role: user.role }
+        user: { id: user._id, name: user.name, email: user.email, roles: user.roles,organization: user.organization }
       });
 
   } catch (err) {
